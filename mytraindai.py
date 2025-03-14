@@ -6,4 +6,4 @@ model = YOLO("/Users/zhanghaining/git/ultralytics/yolo11n-seg.pt")  # load a pre
 # model = YOLO("yolo11n-seg.yaml").load("yolo11n.pt")  # build from YAML and transfer weights
 
 # Train the model
-results = model.train(data="/Users/zhanghaining/git/ultralytics/ultralytics/cfg/datasets/coco128-seg.yaml", epochs=5, imgsz=640, device="mps")
+results = model.train(data="/Users/zhanghaining/git/ultralytics/ultralytics/cfg/datasets/dai.yaml", epochs=5, imgsz=640, device="mps")
