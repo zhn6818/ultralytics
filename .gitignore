@@ -192,3 +192,5 @@ calibration_*.npy
 *.heic
 *.ico
 *.raw
+yolo_seg_dataset/
+coco128-seg/
