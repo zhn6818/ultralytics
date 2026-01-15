@@ -14,15 +14,13 @@
                 "--task-name",
                 "afica",
                 "--data-root",
-                "/Users/zhanghaining/git/SteelAiLab/data/africa",
+                "/data1/zhn/africa",
                 "--train-mode",
                 "pretrained",
                 "--model-family",
                 "yolov11",
                 "--imgsz",
                 "640",
-                "--device",
-                "cpu",
             ]
         },
         {

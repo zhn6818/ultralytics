@@ -549,12 +549,12 @@ TRAIN_KWARGS: Dict[str, Any] = {
     "dfl": 1.5,
 
     # 学习率设置
-    "lr0": 0.001,        # 初始学习率
+    "lr0": 0.01,        # 初始学习率
     "lrf": 0.01,         # 最终学习率因子
-    "cos_lr": True,      # 余弦学习率调度
+    "cos_lr": False,      # 余弦学习率调度
 
     # 优化器设置
-    "optimizer": "AdamW",
+    "optimizer": "auto",
     "momentum": 0.937,
     "weight_decay": 0.0005,
 

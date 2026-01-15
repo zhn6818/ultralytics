@@ -771,6 +771,176 @@ class Model(torch.nn.Module):
             self.trainer.model = self.trainer.get_model(weights=self.model if self.ckpt else None, cfg=self.model.yaml)
             self.model = self.trainer.model
 
+        # 添加回调函数，在保存best模型时自动导出ONNX
+        _last_exported_best = {
+            "fitness": None,  # 用于跟踪已导出的best模型的fitness值
+            "mtime": None,    # 用于跟踪best.pt文件的最后修改时间
+        }
+        
+        # 从kwargs中提取导出参数（如果提供）
+        export_onnx_kwargs = kwargs.pop("export_onnx", {}) if isinstance(kwargs.get("export_onnx"), dict) else {}
+        
+        def export_best_onnx(trainer):
+            """当保存best模型时，自动导出对应的ONNX模型"""
+            if RANK not in {-1, 0}:  # 只在主进程中执行
+                return
+            
+            # 检查best模型文件是否存在
+            if not trainer.best.exists():
+                return
+                
+            try:
+                # 获取best.pt文件的当前修改时间
+                current_mtime = trainer.best.stat().st_mtime
+                
+                # 检查best模型是否被更新（通过两种方式确认）：
+                # 1. 文件修改时间是否改变
+                # 2. best_fitness是否提升（等于当前fitness）
+                is_file_updated = (_last_exported_best["mtime"] is None or 
+                                  current_mtime != _last_exported_best["mtime"])
+                is_best_improved = trainer.best_fitness == trainer.fitness
+                
+                # 只有当文件确实被更新且fitness提升时才导出
+                if is_file_updated and is_best_improved:
+                    LOGGER.info(f"检测到新的best模型（fitness={trainer.best_fitness:.4f}），开始导出ONNX: {trainer.best}")
+                    
+                    # 直接从checkpoint文件创建新的Model实例，避免deepcopy导致的序列化问题
+                    # 使用当前Model类的类型来创建新实例
+                    best_model_instance = self.__class__(str(trainer.best))
+                    
+                    # 导出ONNX，保存到与best.pt相同的目录
+                    onnx_path = trainer.best.with_suffix(".onnx")
+                    
+                    # 设置默认导出参数
+                    default_export_kwargs = {
+                        "format": "onnx",  # 必须指定导出格式为onnx
+                        "imgsz": args.get("imgsz", self.model.args.get("imgsz", 640) if hasattr(self.model, "args") else 640),
+                        "simplify": export_onnx_kwargs.get("simplify", True),
+                        "dynamic": export_onnx_kwargs.get("dynamic", False),
+                    }
+                    # 合并用户自定义的导出参数
+                    default_export_kwargs.update(export_onnx_kwargs)
+                    # 强制保持format为onnx(如果用户传入了其他format,也要覆盖)
+                    default_export_kwargs["format"] = "onnx"
+                    
+                    # 执行导出
+                    exported_path = best_model_instance.export(**default_export_kwargs)
+                    
+                    # 如果导出的路径与期望的不同，重命名
+                    if Path(exported_path) != onnx_path:
+                        import shutil
+                        shutil.move(exported_path, onnx_path)
+                        exported_path = str(onnx_path)
+                    
+                    LOGGER.info(f"Best模型ONNX导出成功: {exported_path}")
+                    
+                    # 保存YAML配置文件
+                    try:
+                        yaml_path = onnx_path.with_suffix(".yaml")
+                        config_data = {}
+                        
+                        # 获取类别名称和数量
+                        if hasattr(best_model_instance.model, "names"):
+                            names = best_model_instance.model.names
+                            if isinstance(names, dict):
+                                # 将字典转换为列表，按索引排序
+                                class_names = [names.get(i, f"class_{i}") for i in range(len(names))]
+                            elif isinstance(names, list):
+                                class_names = names
+                            else:
+                                class_names = list(names.values()) if hasattr(names, "values") else []
+                            config_data["class_names"] = class_names
+                        
+                        if hasattr(best_model_instance.model, "nc"):
+                            config_data["num_classes"] = int(best_model_instance.model.nc)
+                        elif "class_names" in config_data:
+                            config_data["num_classes"] = len(config_data["class_names"])
+                        
+                        # 获取图像尺寸
+                        imgsz = default_export_kwargs.get("imgsz", 640)
+                        if isinstance(imgsz, (list, tuple)):
+                            img_scale = list(imgsz) if len(imgsz) == 2 else [imgsz[0], imgsz[0]]
+                        else:
+                            img_scale = [imgsz, imgsz]
+                        config_data["img_scale"] = img_scale
+                        
+                        # 获取任务类型
+                        # 检查模型结构是否包含分割模块（Segment）来判断是否是instance任务
+                        is_seg = False
+                        try:
+                            # 检查模型的最后一层是否是Segment类型
+                            if hasattr(best_model_instance, "model") and hasattr(best_model_instance.model, "model"):
+                                from ultralytics.nn.modules.head import Segment, YOLOESegment
+                                last_layer = best_model_instance.model.model[-1]
+                                if isinstance(last_layer, (Segment, YOLOESegment)):
+                                    is_seg = True
+                            # 或者检查模型是否是SegmentationModel类型
+                            elif hasattr(best_model_instance, "model"):
+                                from ultralytics.nn.tasks import SegmentationModel
+                                if isinstance(best_model_instance.model, SegmentationModel):
+                                    is_seg = True
+                        except Exception:
+                            # 如果检查失败，默认使用detection
+                            pass
+                        
+                        # 根据任务类型设置：detect -> "detection", 有Segment模块 -> "instance"
+                        if is_seg:
+                            config_data["task_type"] = "instance"
+                        else:
+                            config_data["task_type"] = "detection"
+                        
+                        # 获取mean和std
+                        # ultralytics 框架的预处理非常简单：只是 img.float() / 255
+                        # 将图像从 [0, 255] 归一化到 [0, 1]，不使用额外的均值和方差归一化
+                        # 因此 mean = [0, 0, 0], std = [255, 255, 255]
+                        # 或者说图像已经归一化到 [0, 1]，mean = [0, 0, 0], std = [1, 1, 1]
+                        
+                        # 为了与推理部署时的处理一致，这里设置：
+                        # mean = [0, 0, 0] (RGB三个通道)
+                        # std = [255, 255, 255] (表示图像值除以255)
+                        config_data["mean"] = [0.0, 0.0, 0.0]
+                        config_data["std"] = [255.0, 255.0, 255.0]
+                        
+                        # 保存YAML文件
+                        # 使用自定义YAML格式，让列表按一行保存
+                        try:
+                            import yaml
+                            
+                            # 自定义YAML表示，让列表按一行保存
+                            class MyDumper(yaml.Dumper):
+                                def represent_list(self, data):
+                                    return self.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+                                
+                                def represent_tuple(self, data):
+                                    return self.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+                            
+                            MyDumper.add_representer(list, MyDumper.represent_list)
+                            MyDumper.add_representer(tuple, MyDumper.represent_tuple)
+                            
+                            yaml_path.parent.mkdir(parents=True, exist_ok=True)
+                            with open(yaml_path, 'w', encoding='utf-8') as f:
+                                yaml.dump(config_data, f, Dumper=MyDumper, default_flow_style=False, allow_unicode=True)
+                            
+                            LOGGER.info(f"配置文件已保存: {yaml_path}")
+                        except Exception as yaml_error:
+                            # 如果自定义格式失败，回退到默认格式
+                            LOGGER.warning(f"使用自定义YAML格式失败: {yaml_error}，尝试默认格式")
+                            YAML.save(yaml_path, config_data)
+                            LOGGER.info(f"配置文件已保存: {yaml_path}")
+                        
+                    except Exception as e:
+                        LOGGER.warning(f"保存YAML配置文件时出错: {e}，ONNX导出已完成")
+                    
+                    # 更新已导出的best模型的fitness和文件修改时间
+                    _last_exported_best["fitness"] = trainer.best_fitness
+                    _last_exported_best["mtime"] = current_mtime
+                        
+            except Exception as e:
+                LOGGER.warning(f"导出best模型ONNX时出错: {e}，训练将继续进行")
+        
+        # 注册回调函数
+        self.add_callback("on_model_save", export_best_onnx)
+
         self.trainer.train()
         # Update model and cfg after training
         if RANK in {-1, 0}:
