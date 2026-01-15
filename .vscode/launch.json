@@ -1,0 +1,47 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "debug detectTrain.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/trainPlugin/YoloTrain.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--task-name",
+                "afica",
+                "--data-root",
+                "/Users/zhanghaining/git/SteelAiLab/data/africa",
+                "--train-mode",
+                "pretrained",
+                "--model-family",
+                "yolov11",
+                "--imgsz",
+                "640",
+                "--device",
+                "cpu",
+            ]
+        },
+        {
+            "name": "debug segTrain.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/trainPlugin/YoloTrain.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--seg",
+                "--task-name",
+                "carparts",
+                "--data-root",
+                "/data1/zhn/carparts",
+                "--train-mode",
+                "pretrained",
+                "--model-family",
+                "yolov8",
+            ]
+        }
+    ]
+}

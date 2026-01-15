@@ -130,7 +130,7 @@ venv.bak/
 .spyproject
 
 # VSCode project settings
-.vscode/
+# .vscode/
 .devcontainer/
 
 # Rope project settings
