@@ -48,7 +48,7 @@ TrainMode = Literal["scratch", "pretrained", "resume"]
 SUPPORTED_TRAIN_MODES: list[str] = ["scratch", "pretrained", "resume"]
 
 # 支持的模型系列
-SUPPORTED_MODEL_FAMILIES: list[str] = ["yolov5", "yolov8", "yolo11"]
+SUPPORTED_MODEL_FAMILIES: list[str] = ["yolov5", "yolov8", "yolo11", "yolo26"]
 
 # 支持的模型大小
 SUPPORTED_MODEL_SIZES: list[str] = ["n", "s", "m", "l", "x"]
@@ -67,13 +67,13 @@ def get_task_full_name(task_name: str, model_family: str, model_size: str, task_
     
     Args:
         task_name: 任务名称前缀，例如 "detect", "instance" 等
-        model_family: 模型系列，例如 "yolo11", "yolov8", "yolov5"
+        model_family: 模型系列，例如 "yolo11", "yolov8", "yolov5", "yolo26"
         model_size: 模型大小，例如 "n", "s", "m", "l", "x"
         task_type: 任务类型，例如 "detect" 或 "instance"
     
     Returns:
         完整的任务名称，格式为 {task_name}_{model_family}_{model_size}
-        例如: "detect_yolo11_s", "instance_yolov8_m"
+        例如: "detect_yolo11_s", "instance_yolov8_m", "detect_yolo26_s"
     """
     return f"{task_name}_{model_family}_{model_size}"
 
@@ -354,13 +354,14 @@ def get_yaml_path(model_family: str, model_size: str, task_type: str = "detect")
     Ultralytics 会自动识别 scale 后缀（n/s/m/l/x）并应用对应的缩放参数。
 
     Args:
-        model_family: 模型系列，例如 "yolo11", "yolov8", "yolov5"
+        model_family: 模型系列，例如 "yolo11", "yolov8", "yolov5", "yolo26"
         model_size: 模型大小，例如 "n", "s", "m", "l", "x"
         task_type: 任务类型，"detect"（检测）或 "instance"（实例分割）
     
     Returns:
         YAML 配置文件路径（包含 scale），例如 "./ultralytics/ultralytics/cfg/models/11/yolo11n.yaml"
         或 "./ultralytics/ultralytics/cfg/models/11/yolo11n-seg.yaml"
+        或 "./ultralytics/ultralytics/cfg/models/26/yolo26n.yaml"
     """
     model_family = model_family.lower()
     model_size = model_size.lower()
@@ -378,6 +379,9 @@ def get_yaml_path(model_family: str, model_size: str, task_type: str = "detect")
     # 对于 yolov5，返回 ./ultralytics/ultralytics/cfg/models/v5/yolov5n.yaml 或 yolov5n-seg.yaml
     elif model_family == "yolov5":
         return f"{YAML_BASE_DIR}/v5/yolov5{model_size}{suffix}.yaml"
+    # 对于 yolo26，返回 ./ultralytics/ultralytics/cfg/models/26/yolo26n.yaml 或 yolo26n-seg.yaml
+    elif model_family == "yolo26":
+        return f"{YAML_BASE_DIR}/26/yolo26{model_size}{suffix}.yaml"
     else:
         raise ValueError(f"不支持的模型系列: {model_family}，支持的系列: {SUPPORTED_MODEL_FAMILIES}")
 
@@ -387,12 +391,12 @@ def get_official_weight_name(model_family: str, model_size: str, task_type: str 
     根据模型系列、大小和任务类型生成官方权重名称。
 
     Args:
-        model_family: 模型系列，例如 "yolo11", "yolov8", "yolov5"
+        model_family: 模型系列，例如 "yolo11", "yolov8", "yolov5", "yolo26"
         model_size: 模型大小，例如 "n", "s", "m", "l", "x"
         task_type: 任务类型，"detect"（检测）或 "instance"（实例分割）
     
     Returns:
-        官方权重名称，例如 "yolo11s.pt", "yolov8n-seg.pt"
+        官方权重名称，例如 "yolo11s.pt", "yolov8n-seg.pt", "yolo26s.pt"
     """
     model_family = model_family.lower()
     model_size = model_size.lower()
@@ -410,6 +414,9 @@ def get_official_weight_name(model_family: str, model_size: str, task_type: str 
     # 对于 yolov5，格式为 yolov5s.pt 或 yolov5s-seg.pt
     elif model_family == "yolov5":
         return f"yolov5{model_size}{suffix}.pt"
+    # 对于 yolo26，格式为 yolo26n.pt 或 yolo26n-seg.pt
+    elif model_family == "yolo26":
+        return f"yolo26{model_size}{suffix}.pt"
     else:
         raise ValueError(f"不支持的模型系列: {model_family}，支持的系列: {SUPPORTED_MODEL_FAMILIES}")
 
@@ -426,7 +433,7 @@ def get_model_config(
     根据模型系列、大小、训练模式和任务类型自动选择模型配置。
     
     Args:
-        model_family: 模型系列，例如 "yolo11", "yolov8", "yolov5"
+        model_family: 模型系列，例如 "yolo11", "yolov8", "yolov5", "yolo26"
         model_size: 模型大小，例如 "n", "s", "m", "l", "x"
         train_mode: 训练模式，可选值：
             - "scratch": 从 YAML 配置文件从头训练（不使用预训练权重）

@@ -38,7 +38,7 @@ def add_model_args(parser: argparse.ArgumentParser,
         "--model-family",
         type=str,
         default=DEFAULT_MODEL_FAMILY,
-        help="模型系列(默认: {})。支持变体: yolo11/yolov11, yolov5/yolo5, yolov8/yolo8".format(DEFAULT_MODEL_FAMILY),
+        help="模型系列(默认: {})。支持变体: yolo11/yolov11, yolov5/yolo5, yolov8/yolo8, yolo26/yolov26".format(DEFAULT_MODEL_FAMILY),
     )
     model_group.add_argument(
         "--model-size",

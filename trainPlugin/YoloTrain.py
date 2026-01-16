@@ -49,6 +49,7 @@ def normalize_model_family(user_input: str) -> str:
     - yolo11 或 yolov11 → yolo11
     - yolov5 或 yolo5 → yolov5
     - yolov8 或 yolo8 → yolov8
+    - yolo26 或 yolov26 → yolo26
     
     Args:
         user_input: 用户输入的模型系列名称（不区分大小写）
@@ -62,7 +63,7 @@ def normalize_model_family(user_input: str) -> str:
     user_input_lower = user_input.lower().strip()
     
     # 定义变体到标准格式的映射
-    # 注意：yolo11 的标准格式是 "yolo11"（不带v），而 yolov5 和 yolov8 的标准格式带v
+    # 注意：yolo11 和 yolo26 的标准格式是 "yolo11"/"yolo26"（不带v），而 yolov5 和 yolov8 的标准格式带v
     variant_mapping = {
         # yolo11 的变体（标准格式是 yolo11）
         "yolo11": "yolo11",
@@ -73,6 +74,9 @@ def normalize_model_family(user_input: str) -> str:
         # yolov8 的变体（标准格式是 yolov8）
         "yolov8": "yolov8",
         "yolo8": "yolov8",
+        # yolo26 的变体（标准格式是 yolo26）
+        "yolo26": "yolo26",
+        "yolov26": "yolo26",
     }
     
     # 首先尝试直接匹配映射表
@@ -98,7 +102,7 @@ def normalize_model_family(user_input: str) -> str:
             if normalized is None:
                 raise ValueError(
                     f"不支持的模型系列: '{user_input}'。"
-                    f"支持的变体: yolo11/yolov11, yolov5/yolo5, yolov8/yolo8。"
+                    f"支持的变体: yolo11/yolov11, yolov5/yolo5, yolov8/yolo8, yolo26/yolov26。"
                     f"标准格式: {', '.join(SUPPORTED_MODEL_FAMILIES)}"
                 )
     
@@ -114,7 +118,7 @@ def normalize_model_family(user_input: str) -> str:
 def parse_args() -> argparse.Namespace:
     """解析命令行参数，选择要训练的模型系列、大小和训练模式。"""
     parser = argparse.ArgumentParser(
-        description="快速训练 YOLO 模型（支持 yolov5/yolov8/yolo11 的 n/s/m/l/x 变体，支持检测和分割任务，支持三种训练模式）",
+        description="快速训练 YOLO 模型（支持 yolov5/yolov8/yolo11/yolo26 的 n/s/m/l/x 变体，支持检测和分割任务，支持三种训练模式）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用示例:
@@ -131,6 +135,7 @@ def parse_args() -> argparse.Namespace:
   # 4. 训练不同的模型系列和大小
   python YoloTrain.py --model-family yolov8 --model-size m --train-mode pretrained
   python YoloTrain.py --model-family yolov5 --model-size l --train-mode scratch
+  python YoloTrain.py --model-family yolo26 --model-size s --train-mode pretrained
   
   # 5. 使用自定义任务名称（推荐，方便管理）
   python YoloTrain.py --task-name my_steel_detector --train-mode pretrained
@@ -149,6 +154,7 @@ def parse_args() -> argparse.Namespace:
   python YoloTrain.py --seg
   python YoloTrain.py --seg --model-size m --epochs 100
   python YoloTrain.py --seg --model-family yolov8 --model-size l --train-mode pretrained
+  python YoloTrain.py --seg --model-family yolo26 --model-size m --train-mode pretrained
   python YoloTrain.py --seg --data-root /data1/dataset/seg --task-name my_seg
 
   # 9. 自定义优化器参数
@@ -374,7 +380,7 @@ def train_yolo_model(
     核心YOLO训练函数，提取了训练的核心逻辑，供多个调用方复用
     
     Args:
-        model_family: 模型系列 (yolo11/yolov8/yolov5)，应该是已标准化的值
+        model_family: 模型系列 (yolo11/yolov8/yolov5/yolo26)，应该是已标准化的值
         model_size: 模型大小 (n/s/m/l/x)
         task_type: 任务类型 (detect/instance)
         task_prefix: 任务名称前缀，如果为None则使用DEFAULT_TASK_NAME
