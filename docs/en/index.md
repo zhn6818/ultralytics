@@ -6,7 +6,7 @@ keywords: Ultralytics, YOLO, YOLO26, YOLO11, object detection, image segmentatio
 
 <div align="center">
 <br><br>
-<a href="https://www.ultralytics.com/events/yolovision?utm_source=github&utm_medium=org&utm_campaign=yv25_event" target="_blank"><img width="100%" src="https://raw.githubusercontent.com/ultralytics/assets/main/yolov8/banner-yolov8.png" alt="Ultralytics YOLO banner"></a>
+<a href="https://platform.ultralytics.com/ultralytics/yolo26" target="_blank"><img width="100%" src="https://raw.githubusercontent.com/ultralytics/assets/main/yolov8/banner-yolov8.png" alt="Ultralytics YOLO banner"></a>
 <br><br>
 <a href="https://docs.ultralytics.com/zh/">中文</a> ·
 <a href="https://docs.ultralytics.com/ko/">한국어</a> ·
@@ -215,7 +215,7 @@ Here's example code for the Object Detection Task:
         from ultralytics import YOLO
 
         # Load a pretrained YOLO model (you can choose n, s, m, l, or x versions)
-        model = YOLO("yolo11n.pt")
+        model = YOLO("yolo26n.pt")
 
         # Start training on your custom dataset
         model.train(data="path/to/dataset.yaml", epochs=100, imgsz=640)
@@ -251,7 +251,7 @@ Ultralytics YOLO supports efficient and customizable multi-object tracking. To u
         from ultralytics import YOLO
 
         # Load a pretrained YOLO model
-        model = YOLO("yolo11n.pt")
+        model = YOLO("yolo26n.pt")
 
         # Start tracking objects in a video
         # You can also use live video streams or webcam input
